@@ -8,6 +8,11 @@ import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
 import java.net.ProtocolException;
 import java.net.URL;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.LinkedHashMap;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 /**
  * Created by zsjanos on 2016.10.28..
@@ -38,13 +43,16 @@ public class Search {
 
     private static String toString(String response) {
 
-        StringBuffer textResponse = new StringBuffer();
 
         // JSON objects
         JSONArray hitsArray = null;
         JSONObject hits = null;
         JSONObject source = null;
         JSONObject json = null;
+
+
+        Map<String, Integer> resultMap = new HashMap<>();
+
         try {
             json = new JSONObject(response);
             hits = json.getJSONObject("hits");
@@ -71,14 +79,30 @@ public class Search {
                 stringBuffer.append("@");
                 stringBuffer.append(source.getString("parentPos"));
 
-                textResponse.append(stringBuffer.toString() + '\n');
+                stringBuffer.append("\t");
+                stringBuffer.append(source.getString("source"));
+
+                if (!resultMap.containsKey(stringBuffer.toString())) {
+                    resultMap.put(stringBuffer.toString(), 1);
+                } else {
+                    resultMap.put(stringBuffer.toString(), resultMap.get(stringBuffer.toString()) + 1);
+                }
             }
         } catch (Exception e) {
             e.printStackTrace();
         }
 
+
+        resultMap = sortByValue(resultMap);
+
+        StringBuffer textResponse = new StringBuffer();
+        for (Map.Entry<String, Integer> entry : resultMap.entrySet()) {
+            textResponse.append(entry.getValue() + "\t" + entry.getKey() + '\n');
+        }
+
         return textResponse.toString();
     }
+
 
     /**
      * @return
@@ -163,8 +187,20 @@ public class Search {
         return toString(resultBuf.toString());
     }
 
+    public static <K, V extends Comparable<? super V>> Map<K, V> sortByValue(Map<K, V> map) {
+        return map.entrySet()
+                .stream()
+                .sorted(Map.Entry.comparingByValue(Collections.reverseOrder()))
+                .collect(Collectors.toMap(
+                        Map.Entry::getKey,
+                        Map.Entry::getValue,
+                        (e1, e2) -> e1,
+                        LinkedHashMap::new
+                ));
+    }
+
 
     public static void main(String[] args) {
-        System.out.println(searchByMultiple("otp", null, "NE", null, null));
+        System.out.println(searchByMultiple(null, null, "NE", null, null));
     }
 }
